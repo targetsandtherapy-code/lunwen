@@ -2,7 +2,6 @@
 import sys
 import os
 import tempfile
-import threading
 from pathlib import Path
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -10,14 +9,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import streamlit as st
 from main import process_paper
-from modules.formatter import format_single_reference_markdown
 
 st.set_page_config(page_title="论文参考文献智能生成", page_icon="📚", layout="wide")
 
 if "stop_flag" not in st.session_state:
     st.session_state.stop_flag = False
-if "all_results" not in st.session_state:
-    st.session_state.all_results = {}
 
 st.title("📚 论文参考文献智能生成工具")
 st.markdown(r"上传含角标（如 \[1\], \[2,3\], \[4-6\]）的 Word 文档，自动匹配真实学术论文并生成 GB/T 7714 格式参考文献列表。")
@@ -66,47 +62,19 @@ with col_left:
 
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
-        run_btn = st.button("🚀 生成参考文献", type="primary", use_container_width=True)
+        run_btn = st.button("🚀 生成", type="primary", use_container_width=True)
     with btn_col2:
         stop_btn = st.button("⏹ 停止", use_container_width=True)
 
     if stop_btn:
         st.session_state.stop_flag = True
-        st.warning("已请求停止，当前角标处理完成后将停止。")
-
-
-def _process_single_file(docx_path, file_label, cn_ratio, status_container, log_container):
-    """处理单个文件"""
-    log_lines = []
-
-    def log_callback(msg):
-        if st.session_state.stop_flag:
-            raise InterruptedError("用户停止")
-        log_lines.append(msg)
-
-    try:
-        refs, md_output, plain_output = process_paper(
-            docx_path=docx_path,
-            year_start=int(year_start),
-            year_end=int(year_end),
-            results_per_source=int(results_per),
-            cn_ratio=cn_ratio,
-            callback=log_callback,
-        )
-        return refs, md_output, plain_output, log_lines, None
-    except InterruptedError:
-        return {}, "", "", log_lines, "stopped"
-    except Exception as e:
-        return {}, "", "", log_lines, str(e)
-
+        st.warning("已请求停止")
 
 with col_right:
     if run_btn:
         st.session_state.stop_flag = False
-        st.session_state.all_results = {}
 
         docx_list = []
-
         if uploaded_files:
             for uf in uploaded_files:
                 tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
@@ -136,44 +104,75 @@ with col_right:
                 break
 
             if total_files > 1:
-                st.subheader(f"📄 文件 {file_idx+1}/{total_files}: {file_label}")
+                st.subheader(f"文件 {file_idx+1}/{total_files}: {file_label}")
 
-            progress_bar = st.progress(0, text=f"正在处理: {file_label}...")
-            log_container = st.expander(f"运行日志 - {file_label}", expanded=False)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            log_area = st.empty()
+            log_lines = []
 
-            with st.spinner(f"正在处理 {file_label}..."):
-                refs, md_output, plain_output, logs, error = _process_single_file(
-                    docx_path, file_label, cn_ratio, None, log_container
+            status_text.info(f"正在处理: {file_label}...")
+
+            def make_log_callback(lines_ref, log_widget, status_widget):
+                def cb(msg):
+                    if st.session_state.stop_flag:
+                        raise InterruptedError("用户停止")
+                    lines_ref.append(msg)
+                    display = "\n".join(lines_ref[-20:])
+                    log_widget.code(display, language=None)
+                return cb
+
+            def make_progress_callback(bar, status_widget):
+                def cb(current, total, text):
+                    pct = int(current / max(total, 1) * 100)
+                    bar.progress(min(pct, 100))
+                    status_widget.info(text)
+                return cb
+
+            log_cb = make_log_callback(log_lines, log_area, status_text)
+            prog_cb = make_progress_callback(progress_bar, status_text)
+
+            error = None
+            refs, md_output, plain_output = {}, "", ""
+
+            try:
+                refs, md_output, plain_output = process_paper(
+                    docx_path=docx_path,
+                    year_start=int(year_start),
+                    year_end=int(year_end),
+                    results_per_source=int(results_per),
+                    cn_ratio=cn_ratio,
+                    callback=log_cb,
+                    progress_callback=prog_cb,
                 )
-
-            with log_container:
-                for line in logs:
-                    st.text(line)
+            except InterruptedError:
+                error = "stopped"
+            except Exception as e:
+                error = str(e)
 
             if error == "stopped":
-                st.warning("处理已停止")
-                progress_bar.progress(50, text="已停止")
+                status_text.warning("处理已停止")
+                progress_bar.progress(50)
                 break
             elif error:
-                st.error(f"处理出错: {error}")
-                progress_bar.progress(100, text="出错")
+                status_text.error(f"处理出错: {error}")
+                progress_bar.progress(100)
                 continue
 
-            progress_bar.progress(100, text="完成!")
+            progress_bar.progress(100)
 
             if not refs:
-                st.warning("未找到任何角标或匹配结果")
+                status_text.warning("未找到任何角标或匹配结果")
             else:
                 cn_count = sum(1 for p in refs.values()
                     if sum(1 for c in (p.title or "") if '\u4e00' <= c <= '\u9fff') / max(len(p.title or "x"), 1) > 0.3)
                 en_count = len(refs) - cn_count
-
-                st.success(f"{len(refs)} 条参考文献已生成 (中文 {cn_count} + 英文 {en_count})")
+                status_text.success(f"{len(refs)} 条参考文献已生成 (中文 {cn_count} + 英文 {en_count})")
 
                 st.markdown("### 参考文献列表")
                 st.markdown(md_output)
 
-                st.markdown("### 详细匹配结果")
+                st.markdown("### 详细匹配")
                 for idx in sorted(refs.keys()):
                     p = refs[idx]
                     with st.container(border=True):
@@ -182,28 +181,27 @@ with col_right:
                         st.markdown(f"{p.journal or 'N/A'} | {p.year or 'N/A'} | DOI: {doi_link} | 被引: {p.citation_count or 'N/A'} | 来源: {p.source}")
 
                 st.divider()
-                dl_col1, dl_col2 = st.columns(2)
-                with dl_col1:
+                dl1, dl2 = st.columns(2)
+                with dl1:
                     st.download_button(
-                        f"下载 Markdown ({file_label})",
+                        f"下载 Markdown",
                         data=md_output,
                         file_name=f"{Path(file_label).stem}_references.md",
                         mime="text/markdown",
                         use_container_width=True,
-                        key=f"dl_md_{file_idx}",
+                        key=f"md_{file_idx}",
                     )
-                with dl_col2:
+                with dl2:
                     st.download_button(
-                        f"下载 TXT ({file_label})",
+                        f"下载 TXT",
                         data=plain_output,
                         file_name=f"{Path(file_label).stem}_references.txt",
                         mime="text/plain",
                         use_container_width=True,
-                        key=f"dl_txt_{file_idx}",
+                        key=f"txt_{file_idx}",
                     )
 
             if file_idx < total_files - 1:
                 st.divider()
-
     else:
-        st.info("👈 请在左侧上传文档或粘贴文本，然后点击「生成参考文献」")
+        st.info("👈 请在左侧上传文档或粘贴文本，然后点击「生成」")

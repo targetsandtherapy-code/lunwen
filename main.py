@@ -67,11 +67,13 @@ def process_paper(
     top_k: int = 1,
     cn_ratio: float = 0.25,
     callback=None,
+    progress_callback=None,
 ):
     """处理论文主流程
 
     Args:
         cn_ratio: 中文文献占比 (0.25 = 1:3 中英文比例)
+        progress_callback: 进度回调 progress_callback(current, total, status_text)
     """
     if year_start is None:
         year_start = YEAR_RANGE[0]
@@ -123,11 +125,18 @@ def process_paper(
     used_titles: set[str] = set()
     analysis_cache: dict[str, object] = {}
 
-    for cid, marker in grouped.items():
+    marker_list = list(grouped.items())
+    total_markers = len(marker_list)
+
+    for marker_idx, (cid, marker) in enumerate(marker_list):
         marker_start = time.time()
         target_lang = lang_map[cid]
         lang_label = "中文" if target_lang == "cn" else "英文"
-        log(f"\n[{cid}] ({lang_label}) 处理中...")
+
+        if progress_callback:
+            progress_callback(marker_idx, total_markers, f"处理角标 [{cid}] ({marker_idx+1}/{total_markers})")
+
+        log(f"\n[{cid}] ({lang_label}) {marker_idx+1}/{total_markers}")
 
         # LLM 分析（缓存）
         cache_key = marker.context_before.strip()[:100]
@@ -241,9 +250,12 @@ def process_paper(
     cn_final = sum(1 for p in references.values() if _is_chinese_title(p.title))
     en_final = len(references) - cn_final
     total_elapsed = time.time() - total_start
-    log(f"\n完成！{len(references)}/{len(grouped)} 匹配")
+    log(f"\n完成! {len(references)}/{len(grouped)} 匹配")
     log(f"  中文: {cn_final} | 英文: {en_final} | 比例: {cn_final}:{en_final}")
     log(f"  总耗时: {total_elapsed:.1f}s")
+
+    if progress_callback:
+        progress_callback(total_markers, total_markers, "完成!")
 
     plain_output = format_reference_list(references)
     markdown_output = format_reference_list_markdown(references)

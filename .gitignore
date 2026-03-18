@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.streamlit/
+dist/
+build/
+*.spec
+test_paper.docx
+test_paper_references.md

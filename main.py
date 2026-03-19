@@ -68,6 +68,7 @@ def process_paper(
     cn_ratio: float = 0.25,
     callback=None,
     progress_callback=None,
+    paper_title: str = "",
 ):
     """处理论文主流程
 
@@ -93,7 +94,8 @@ def process_paper(
 
     log("Step 1: 解析 Word 文档...")
     parser = DocParser(docx_path)
-    paper_title = parser.get_title()
+    if not paper_title:
+        paper_title = parser.get_title()
     grouped = parser.extract_markers_grouped()
     log(f"  论文标题: {paper_title}")
     log(f"  发现 {len(grouped)} 个角标: {list(grouped.keys())}")
@@ -272,16 +274,17 @@ if __name__ == "__main__":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     if len(sys.argv) < 2:
-        print("用法: python main.py <论文.docx> [起始年份] [结束年份] [中文比例]")
-        print("  示例: python main.py paper.docx 2022 2026 0.25")
+        print("用法: python main.py <论文.docx> [起始年份] [结束年份] [中文比例] [论文标题]")
+        print("  示例: python main.py paper.docx 2022 2026 0.25 正念训练对护理人员隐性缺勤影响机制研究")
         sys.exit(1)
 
     docx_path = sys.argv[1]
     year_start = int(sys.argv[2]) if len(sys.argv) > 2 else None
     year_end = int(sys.argv[3]) if len(sys.argv) > 3 else None
     cn_ratio = float(sys.argv[4]) if len(sys.argv) > 4 else 0.25
+    title = sys.argv[5] if len(sys.argv) > 5 else ""
 
-    refs, md, plain = process_paper(docx_path, year_start, year_end, cn_ratio=cn_ratio)
+    refs, md, plain = process_paper(docx_path, year_start, year_end, cn_ratio=cn_ratio, paper_title=title)
 
     print("\n" + "="*60)
     print(plain)

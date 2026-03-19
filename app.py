@@ -42,6 +42,12 @@ with col_left:
 
     st.divider()
 
+    paper_title_input = st.text_input(
+        "论文题目",
+        placeholder="例：正念训练对护理人员隐性缺勤影响机制研究",
+        help="输入论文标题可大幅提升文献匹配的精准度",
+    )
+
     c1, c2 = st.columns(2)
     with c1:
         year_start = st.number_input("起始年份", value=2021, min_value=2000, max_value=2026)
@@ -144,6 +150,7 @@ with col_right:
                     cn_ratio=cn_ratio,
                     callback=log_cb,
                     progress_callback=prog_cb,
+                    paper_title=paper_title_input.strip(),
                 )
             except InterruptedError:
                 error = "stopped"

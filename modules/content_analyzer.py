@@ -28,17 +28,22 @@ class ContentAnalyzer:
 论文段落：
 {paragraph}
 
-{f"角标前上下文：{context_before}" if context_before else ""}
+{f"角标前上下文（引用紧跟在这段文字之后）：{context_before}" if context_before else ""}
+
+分析要求：
+1. 仔细阅读角标[{marker_id}]紧邻的前文，判断该引用具体要支撑什么论点
+2. 关键词必须精确针对该具体论点，不要生成该论文整体主题的宽泛关键词
+3. 搜索查询语句要尽可能具体，包含该论点涉及的核心概念、变量、方法等
 
 请严格按以下 JSON 格式返回（不要添加任何其他文字）：
 {{
-  "core_topic": "该引用支撑的核心主题（1句话）",
+  "core_topic": "该引用支撑的核心主题（1句话，必须具体到该角标处的论点）",
   "research_method": "涉及的研究方法/技术（如有）",
-  "key_claim": "该引用想要证明的关键论点",
+  "key_claim": "该引用想要证明的关键论点（必须是角标前文字的精确论点，不是论文整体主题）",
   "cn_keywords": ["中文关键词1", "中文关键词2", "中文关键词3", "中文关键词4", "中文关键词5"],
   "en_keywords": ["English keyword 1", "English keyword 2", "English keyword 3", "English keyword 4", "English keyword 5"],
-  "search_query_cn": "适合在学术数据库搜索的中文查询语句",
-  "search_query_en": "English search query for academic databases"
+  "search_query_cn": "针对该具体论点的中文学术搜索查询",
+  "search_query_en": "Specific English academic search query for this exact claim"
 }}"""
 
         try:

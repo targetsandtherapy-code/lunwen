@@ -1,7 +1,7 @@
 """OpenAlex API 搜索"""
 import time
 import requests
-from .base import BaseSearcher, Paper
+from .base import BaseSearcher, Paper, _is_cjk
 from config import OPENALEX_API, REQUEST_TIMEOUT
 
 
@@ -44,7 +44,13 @@ class OpenAlexSearcher(BaseSearcher):
             authors = []
             for authorship in item.get("authorships") or []:
                 author_obj = authorship.get("author") or {}
-                name = author_obj.get("display_name")
+                name = author_obj.get("display_name", "")
+                if name and _is_cjk(name):
+                    parts = name.split()
+                    if len(parts) == 2 and not _is_cjk(parts[0]) == _is_cjk(parts[1]):
+                        name = "".join(reversed(parts))
+                    else:
+                        name = "".join(parts)
                 if name:
                     authors.append(name)
 

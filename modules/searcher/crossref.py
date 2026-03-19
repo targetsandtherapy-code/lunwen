@@ -1,6 +1,6 @@
 """CrossRef API 搜索"""
 import requests
-from .base import BaseSearcher, Paper
+from .base import BaseSearcher, Paper, format_author_name
 from config import CROSSREF_API, REQUEST_TIMEOUT, REQUEST_HEADERS
 
 
@@ -33,13 +33,9 @@ class CrossRefSearcher(BaseSearcher):
 
             authors = []
             for a in item.get("author") or []:
-                name_parts = []
-                if a.get("given"):
-                    name_parts.append(a["given"])
-                if a.get("family"):
-                    name_parts.append(a["family"])
-                if name_parts:
-                    authors.append(" ".join(name_parts))
+                name = format_author_name(a.get("family", ""), a.get("given", ""))
+                if name:
+                    authors.append(name)
 
             year = None
             for date_field in ("published-print", "published-online"):

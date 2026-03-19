@@ -22,22 +22,24 @@ class RelevanceRanker:
             abstract_preview = (p.abstract or "无摘要")[:150]
             candidates_text += f"\n{i+1}. 标题: {p.title}\n   摘要: {abstract_preview}\n   期刊: {p.journal or 'N/A'} | 年份: {p.year} | 被引: {p.citation_count or 0}\n"
 
-        prompt = f"""你是学术论文引用匹配专家。请评估以下候选文献与论文段落的相关性。
+        prompt = f"""你是学术论文引用匹配专家。请严格评估以下候选文献与论文段落中特定论点的相关性。
 
 论文段落上下文：
 {context}
 
-该引用需要支撑的论点：
+该引用需要支撑的具体论点：
 {claim}
 
 候选文献：
 {candidates_text}
 
-请对每篇候选文献打分(1-10分)，评分标准：
-- 10分: 论文直接论述该论点，是最佳引用
-- 7-9分: 高度相关，涵盖核心主题
-- 4-6分: 部分相关，涉及相关领域
-- 1-3分: 弱相关或不相关
+评分规则（请严格执行，宁低勿高）：
+- 8-10分: 论文直接研究该论点涉及的核心变量/概念/方法，可作为直接引用依据
+- 5-7分: 论文研究领域相同，且涉及该论点的部分关键概念
+- 3-4分: 仅领域相关，但未涉及该论点的核心概念
+- 1-2分: 与该具体论点无实质关联（即使同属大领域也应低分）
+
+注意：只看是否与上述"具体论点"相关，不要因为论文看起来学术质量高就给高分。一篇顶刊论文如果研究内容与该论点无关，也应给 1-2 分。
 
 请严格按以下 JSON 格式返回（不要添加其他文字）：
 {{
@@ -75,7 +77,7 @@ class RelevanceRanker:
                 scored.append((score_map.get(i, 0), p))
 
             scored.sort(key=lambda x: x[0], reverse=True)
-            return [p for _, p in scored[:top_k]]
+            return [p for s, p in scored[:top_k] if s >= 4]
 
         except Exception as e:
             print(f"[RelevanceRanker] 排序失败，返回原始顺序: {e}")

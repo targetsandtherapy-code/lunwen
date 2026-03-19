@@ -2,7 +2,7 @@
 import time
 import requests
 import xml.etree.ElementTree as ET
-from .base import BaseSearcher, Paper
+from .base import BaseSearcher, Paper, format_author_name
 from config import REQUEST_TIMEOUT
 
 
@@ -77,8 +77,8 @@ class PubMedSearcher(BaseSearcher):
             for author in article_elem.findall(".//Author"):
                 last = self._get_text(author.find("LastName"))
                 fore = self._get_text(author.find("ForeName"))
-                if last:
-                    name = f"{fore} {last}" if fore else last
+                name = format_author_name(last, fore)
+                if name:
                     authors.append(name)
 
             journal_elem = article_elem.find(".//Journal")

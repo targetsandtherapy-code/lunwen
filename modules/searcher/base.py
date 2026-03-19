@@ -1,7 +1,25 @@
 """搜索结果统一数据模型和基类"""
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 from abc import ABC, abstractmethod
+
+
+def _is_cjk(text: str) -> bool:
+    return any('\u4e00' <= c <= '\u9fff' for c in text)
+
+
+def format_author_name(family: str, given: str) -> str:
+    """按语言正确拼接作者姓名：中文 '姓名' 无空格，西文 'Given Family'"""
+    family = (family or "").strip()
+    given = (given or "").strip()
+    if not family:
+        return given
+    if not given:
+        return family
+    if _is_cjk(family) or _is_cjk(given):
+        return family + given
+    return f"{given} {family}"
 
 
 @dataclass

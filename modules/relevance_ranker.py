@@ -10,7 +10,7 @@ class RelevanceRanker:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
-    def rank(self, context: str, claim: str, candidates: list[Paper], top_k: int = 3) -> list[Paper]:
+    def rank(self, context: str, claim: str, candidates: list[Paper], top_k: int = 3, paper_title: str = "") -> list[Paper]:
         if not candidates:
             return []
 
@@ -22,8 +22,9 @@ class RelevanceRanker:
             abstract_preview = (p.abstract or "无摘要")[:150]
             candidates_text += f"\n{i+1}. 标题: {p.title}\n   摘要: {abstract_preview}\n   期刊: {p.journal or 'N/A'} | 年份: {p.year} | 被引: {p.citation_count or 0}\n"
 
+        title_hint = f"\n本论文标题：{paper_title}" if paper_title else ""
         prompt = f"""你是学术论文引用匹配专家。请严格评估以下候选文献与论文段落中特定论点的相关性。
-
+{title_hint}
 论文段落上下文：
 {context}
 

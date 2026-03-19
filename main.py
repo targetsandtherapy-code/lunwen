@@ -93,7 +93,9 @@ def process_paper(
 
     log("Step 1: 解析 Word 文档...")
     parser = DocParser(docx_path)
+    paper_title = parser.get_title()
     grouped = parser.extract_markers_grouped()
+    log(f"  论文标题: {paper_title}")
     log(f"  发现 {len(grouped)} 个角标: {list(grouped.keys())}")
 
     if not grouped:
@@ -149,6 +151,7 @@ def process_paper(
                     marker_id=str(cid),
                     paragraph=marker.paragraph_text,
                     context_before=marker.context_before,
+                    paper_title=paper_title,
                 )
                 analysis_cache[cache_key] = analysis
                 log(f"  分析: {analysis.core_topic[:40]}")
@@ -219,6 +222,7 @@ def process_paper(
                 claim=analysis.key_claim,
                 candidates=pre_ranked,
                 top_k=max(top_k, 3),
+                paper_title=paper_title,
             )
         except Exception:
             ranked = pre_ranked[:max(top_k, 3)]

@@ -91,6 +91,24 @@ class DocParser:
                     grouped[cid] = m
         return dict(sorted(grouped.items()))
 
+    def get_title(self) -> str:
+        """提取论文标题（取前几个非空段落中最可能是标题的那个）"""
+        for para in self.doc.paragraphs[:10]:
+            text = para.text.strip()
+            if not text or len(text) < 4:
+                continue
+            if MARKER_PATTERN.search(text):
+                continue
+            if para.style and para.style.name and 'title' in para.style.name.lower():
+                return text
+            if para.style and para.style.name and 'heading' in para.style.name.lower():
+                return text
+        for para in self.doc.paragraphs[:6]:
+            text = para.text.strip()
+            if text and len(text) >= 4 and not MARKER_PATTERN.search(text):
+                return text
+        return ""
+
     def get_full_text(self) -> str:
         """获取文档全文"""
         return "\n".join(p.text for p in self.doc.paragraphs if p.text.strip())
